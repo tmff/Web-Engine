@@ -1,3 +1,5 @@
+use final_year_project::run;
+
 fn main() {
-    println!("Hello, world!");
+    run();
 }
