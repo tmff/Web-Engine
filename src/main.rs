@@ -1,5 +1,5 @@
 use final_year_project::run;
 
 fn main() {
-    run();
+    pollster::block_on(run());
 }
