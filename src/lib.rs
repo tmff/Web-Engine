@@ -21,6 +21,19 @@ use cgmath::prelude::*;
 
 use wasm_timer::Instant;
 
+
+pub struct Data{
+    rotation_speed: f32,
+}
+
+impl Data {
+    pub fn new() -> Self {
+        Self {
+            rotation_speed: 2.0 * std::f32::consts::PI / 60.0,
+        }
+    }
+}
+
 pub enum CustomEvent {
     RedrawRequested,
 }
@@ -102,7 +115,6 @@ impl InstanceRaw {
 
 
 
-const ROTATION_SPEED: f32 = 2.0 * std::f32::consts::PI / 60.0;
 
 
 #[repr(C)]
@@ -156,6 +168,7 @@ struct State{
     depth_texture: texture::Texture,
     gui : gui::Gui,
     start_time: Instant,
+    data: Data,
 }
 
 impl State {
@@ -457,6 +470,7 @@ impl State {
             depth_texture,
             gui,
             start_time: Instant::now(),
+            data: Data::new(),
         }
     }
 
@@ -496,7 +510,7 @@ impl State {
         self.queue.write_buffer(&self.camera_buffer, 0, bytemuck::cast_slice(&[self.camera_uniform]));
 
         for i in self.instances.iter_mut(){
-            let amount = cgmath::Quaternion::from_angle_y(cgmath::Rad(ROTATION_SPEED));
+            let amount = cgmath::Quaternion::from_angle_y(cgmath::Rad(self.data.rotation_speed));
             i.rotation = i.rotation * amount;
         }
         let instance_data = self
@@ -582,6 +596,7 @@ impl State {
             ui.add(egui::Label::new(format!(
                 "Test",
             )));
+            ui.add(egui::Slider::new(&mut self.data.rotation_speed, 0.0..=1.0).text("Rotation Speed"));
         });
     }
 }
