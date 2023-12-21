@@ -6,6 +6,7 @@ use wgpu::util::DeviceExt;
 
 mod texture;
 mod camera;
+mod gui;
 
 use winit::{
     event::*,
@@ -17,7 +18,12 @@ use winit::window::Window;
 
 use cgmath::prelude::*;
 
-use egui_wgpu::{winit::Painter, WgpuConfiguration};
+
+use wasm_timer::Instant;
+
+pub enum CustomEvent {
+    RedrawRequested,
+}
 
 
 #[repr(C)]
@@ -148,6 +154,8 @@ struct State{
     instances: Vec<Instance>,
     instance_buffer: wgpu::Buffer,
     depth_texture: texture::Texture,
+    gui : gui::Gui,
+    start_time: Instant,
 }
 
 impl State {
@@ -216,14 +224,7 @@ impl State {
         let diffuse_bytes = include_bytes!("allmyfellas.png"); // CHANGED!
         let diffuse_texture = texture::Texture::from_bytes(&device, &queue, diffuse_bytes, "allmyfellas.png").unwrap(); // CHANGED!
 
-        let wgpu_config: WgpuConfiguration = Default::default(); 
 
-        let mut painter = Painter::new(
-            wgpu_config,
-            0,
-            Some(wgpu::TextureFormat::Depth32Float),
-            true,
-        );
 
         const NUM_INSTANCES_PER_ROW: u32 = 10;
         const INSTANCE_DISPLACEMENT: cgmath::Vector3<f32> = cgmath::Vector3::new(NUM_INSTANCES_PER_ROW as f32 * 0.5, 0.0, NUM_INSTANCES_PER_ROW as f32 * 0.5);
@@ -348,7 +349,7 @@ impl State {
             label: Some("camera_bind_group"),
         });
         
-        
+        let gui = gui::Gui::new(&window, &device);
 
         
 
@@ -454,6 +455,8 @@ impl State {
             instances,
             instance_buffer,
             depth_texture,
+            gui,
+            start_time: Instant::now(),
         }
     }
 
@@ -509,6 +512,8 @@ impl State {
     }
 
     fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
+
+        self.setup_gui();
         let output = self.surface.get_current_texture()?;
         let view = output
             .texture
@@ -556,12 +561,28 @@ impl State {
             // UPDATED!
             render_pass.draw_indexed(0..self.num_indices, 0, 0..self.instances.len() as _);
 
+            
         }
+        self.gui.render(&mut encoder, &output, &self.window, &self.device, &self.queue);
 
         self.queue.submit(iter::once(encoder.finish()));
         output.present();
 
         Ok(())
+    }
+
+    fn setup_gui(&mut self){
+        self.gui.begin_new_frame(self.start_time.elapsed().as_secs_f64());
+
+        let platform = self.gui.platform_mut();
+
+        egui::Window::new("Info")
+        .resizable(true)
+        .show(&platform.context(), |ui| {
+            ui.add(egui::Label::new(format!(
+                "Test",
+            )));
+        });
     }
 }
 
@@ -599,7 +620,10 @@ pub async fn run() {
 
     let mut state = State::new(window).await;
 
-    event_loop.run(move |event, _, control_flow| 
+    event_loop.run(move |event, _, control_flow| {
+        
+        state.gui.handle_event(&event);
+
         match event {
             Event::WindowEvent {
                 ref event,
@@ -644,7 +668,7 @@ pub async fn run() {
         }
         
         _ => {}
-    });
+    }});
 }
 
 #[repr(C)]
