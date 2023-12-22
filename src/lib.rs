@@ -169,6 +169,8 @@ struct State{
     gui : gui::Gui,
     start_time: Instant,
     data: Data,
+    last_frame_time : Instant,
+    frame_times : Vec<u128>,
 }
 
 impl State {
@@ -471,6 +473,8 @@ impl State {
             gui,
             start_time: Instant::now(),
             data: Data::new(),
+            last_frame_time: Instant::now(),
+            frame_times: vec![],
         }
     }
 
@@ -505,6 +509,14 @@ impl State {
     }
 
     fn update(&mut self) {
+        let now = Instant::now();
+        let delta = now - self.last_frame_time;
+        self.last_frame_time = now;
+        self.frame_times.push(delta.as_millis());
+
+        if self.frame_times.len() > 10 {
+            self.frame_times.remove(0);
+        }
         self.camera_controller.update_camera(&mut self.camera);
         self.camera_uniform.update_view_proj(&self.camera);
         self.queue.write_buffer(&self.camera_buffer, 0, bytemuck::cast_slice(&[self.camera_uniform]));
@@ -524,6 +536,8 @@ impl State {
             bytemuck::cast_slice(&instance_data),
         );
     }
+
+
 
     fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
 
@@ -589,16 +603,24 @@ impl State {
         self.gui.begin_new_frame(self.start_time.elapsed().as_secs_f64());
 
         let platform = self.gui.platform_mut();
+        let avg_frame_time = self.frame_times.iter().sum::<u128>() / (self.frame_times.len() + 1) as u128;
 
         egui::Window::new("Info")
         .resizable(true)
         .show(&platform.context(), |ui| {
             ui.add(egui::Label::new(format!(
-                "Test",
+                "Frame time: {}ms ({} FPS)",
+                avg_frame_time,
+                1000 / avg_frame_time
             )));
             ui.add(egui::Slider::new(&mut self.data.rotation_speed, 0.0..=1.0).text("Rotation Speed"));
         });
     }
+
+    fn get_last_delta(&self) -> u128 {
+        self.frame_times[self.frame_times.len() - 1]
+    }
+
 }
 
 #[cfg_attr(target_arch="wasm32", wasm_bindgen(start))]
@@ -681,6 +703,8 @@ pub async fn run() {
         Event::MainEventsCleared => {
             state.window().request_redraw();
         }
+
+
         
         _ => {}
     }});
