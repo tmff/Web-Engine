@@ -9,6 +9,8 @@ mod camera;
 mod gui;
 mod model;
 mod resources;
+mod thing;
+mod physics;
 
 
 use winit::{
@@ -60,7 +62,7 @@ pub enum CompareFunction {
 }
 
 
-struct Instance {
+pub struct Instance {
     position: cgmath::Vector3<f32>,
     rotation: cgmath::Quaternion<f32>,
 }
@@ -76,6 +78,11 @@ impl Instance {
         InstanceRaw {
             model: (cgmath::Matrix4::from_translation(self.position) * cgmath::Matrix4::from(self.rotation)).into(),
         }
+    }
+
+    fn update_transform(&mut self, position: cgmath::Vector3<f32>, rotation: cgmath::Quaternion<f32>) {
+        self.position = position;
+        self.rotation = rotation;
     }
 }
 
@@ -247,6 +254,7 @@ impl State {
         const NUM_INSTANCES_PER_ROW: u32 = 10;
         //const INSTANCE_DISPLACEMENT: cgmath::Vector3<f32> = cgmath::Vector3::new(NUM_INSTANCES_PER_ROW as f32 * 0.5, 0.0, NUM_INSTANCES_PER_ROW as f32 * 0.5);
 
+        
         const SPACE_BETWEEN: f32 = 3.0;
         let instances = (0..NUM_INSTANCES_PER_ROW).flat_map(|z| {
             (0..NUM_INSTANCES_PER_ROW).map(move |x| {
@@ -266,7 +274,6 @@ impl State {
                 }
             })
         }).collect::<Vec<_>>();
-        
 
         let instance_data = instances.iter().map(Instance::to_raw).collect::<Vec<_>>();
         let instance_buffer = device.create_buffer_init(
@@ -440,6 +447,7 @@ impl State {
     resources::load_model("cube.obj", &device, &queue, &texture_bind_group_layout)
         .await
         .unwrap();
+
 
 
         Self {
