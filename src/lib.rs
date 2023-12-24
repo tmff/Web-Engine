@@ -28,6 +28,33 @@ use wasm_timer::Instant;
 
 use model::{DrawModel,Vertex};
 
+struct ModelInstances {
+    model : model::Model,
+    instances : Vec<Instance>,
+    instance_buffer : wgpu::Buffer,
+}
+
+impl ModelInstances {
+    pub fn new(model : model::Model,device : &wgpu::Device) -> Self {
+        let instances = vec![];
+        let instance_data = instances.iter().map(Instance::to_raw).collect::<Vec<_>>();
+
+        let instance_buffer = device.create_buffer_init(
+            &wgpu::util::BufferInitDescriptor {
+                label: Some("Instance Buffer"),
+                contents: bytemuck::cast_slice(&instance_data),
+                usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+            }
+        );
+        Self {
+            model,
+            instances,
+            instance_buffer,
+        }
+    }
+
+}
+
 
 pub struct Data{
     rotation_speed: f32,
@@ -255,7 +282,7 @@ impl State {
         //const INSTANCE_DISPLACEMENT: cgmath::Vector3<f32> = cgmath::Vector3::new(NUM_INSTANCES_PER_ROW as f32 * 0.5, 0.0, NUM_INSTANCES_PER_ROW as f32 * 0.5);
 
         
-        const SPACE_BETWEEN: f32 = 3.0;
+        const SPACE_BETWEEN: f32 = 15.0;
         let instances = (0..NUM_INSTANCES_PER_ROW).flat_map(|z| {
             (0..NUM_INSTANCES_PER_ROW).map(move |x| {
                 let x = SPACE_BETWEEN * (x as f32 - NUM_INSTANCES_PER_ROW as f32 / 2.0);
@@ -444,7 +471,7 @@ impl State {
 
         let camera_controller = camera::CameraController::new(0.2);
         let obj_model =
-    resources::load_model("cube.obj", &device, &queue, &texture_bind_group_layout)
+    resources::load_model("french_bulldog.obj", &device, &queue, &texture_bind_group_layout)
         .await
         .unwrap();
 
