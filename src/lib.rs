@@ -32,11 +32,11 @@ struct ModelInstances {
     model : model::Model,
     instances : Vec<Instance>,
     instance_buffer : wgpu::Buffer,
+    instances_data : Vec<InstanceRaw>,
 }
 
 impl ModelInstances {
-    pub fn new(model : model::Model,device : &wgpu::Device) -> Self {
-        let instances = vec![];
+    pub fn new(model : model::Model,device : &wgpu::Device,instances: Vec<Instance>) -> Self {
         let instance_data = instances.iter().map(Instance::to_raw).collect::<Vec<_>>();
 
         let instance_buffer = device.create_buffer_init(
@@ -46,10 +46,12 @@ impl ModelInstances {
                 usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
             }
         );
+        let instances_data = instances.iter().map(Instance::to_raw).collect::<Vec<_>>();
         Self {
             model,
             instances,
             instance_buffer,
+            instances_data,
         }
     }
 
@@ -199,16 +201,17 @@ struct State{
     camera_buffer: wgpu::Buffer,
     camera_bind_group: wgpu::BindGroup,
     camera_controller: camera::CameraController,
-    instances: Vec<Instance>,
-    instance_buffer: wgpu::Buffer,
+    //instances: Vec<Instance>,
+    //instance_buffer: wgpu::Buffer,
     depth_texture: texture::Texture,
     gui : gui::Gui,
     start_time: Instant,
     data: Data,
     last_frame_time : Instant,
     frame_times : Vec<u128>,
-    obj_model: model::Model,
+    //obj_model: model::Model,
     model_instances: Vec<ModelInstances>,
+    texture_bind_group_layout: wgpu::BindGroupLayout,
 }
 
 impl State {
@@ -282,7 +285,7 @@ impl State {
         const NUM_INSTANCES_PER_ROW: u32 = 10;
         //const INSTANCE_DISPLACEMENT: cgmath::Vector3<f32> = cgmath::Vector3::new(NUM_INSTANCES_PER_ROW as f32 * 0.5, 0.0, NUM_INSTANCES_PER_ROW as f32 * 0.5);
 
-        
+        /*
         const SPACE_BETWEEN: f32 = 15.0;
         let instances = (0..NUM_INSTANCES_PER_ROW).flat_map(|z| {
             (0..NUM_INSTANCES_PER_ROW).map(move |x| {
@@ -302,7 +305,7 @@ impl State {
                 }
             })
         }).collect::<Vec<_>>();
-
+        
         let instance_data = instances.iter().map(Instance::to_raw).collect::<Vec<_>>();
         let instance_buffer = device.create_buffer_init(
             &wgpu::util::BufferInitDescriptor {
@@ -311,6 +314,7 @@ impl State {
                 usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
             }
         );
+        */
 
 
         let texture_bind_group_layout =
@@ -495,16 +499,17 @@ impl State {
             camera_buffer,
             camera_bind_group,
             camera_controller,
-            instances,
-            instance_buffer,
+            //instances,
+            //instance_buffer,
             depth_texture,
             gui,
             start_time: Instant::now(),
             data: Data::new(),
             last_frame_time: Instant::now(),
             frame_times: vec![],
-            obj_model,
+            //obj_model,
             model_instances:vec![],
+            texture_bind_group_layout
         }
     }
 
@@ -551,6 +556,7 @@ impl State {
         self.camera_uniform.update_view_proj(&self.camera);
         self.queue.write_buffer(&self.camera_buffer, 0, bytemuck::cast_slice(&[self.camera_uniform]));
 
+        /*
         for i in self.instances.iter_mut(){
             let amount = cgmath::Quaternion::from_angle_y(cgmath::Rad(self.data.rotation_speed));
             i.rotation = i.rotation * amount;
@@ -561,11 +567,12 @@ impl State {
         .map(Instance::to_raw)
         .collect::<Vec<_>>();
 
-        self.queue.write_buffer(
+    self.queue.write_buffer(
             &self.instance_buffer,
             0,
             bytemuck::cast_slice(&instance_data),
         );
+        */
         
     }
 
@@ -580,7 +587,11 @@ impl State {
             });
         } else {
             // No existing model instance, create a new one and push to model_instances
-            self.model_instances.push(ModelInstances::new(model, &self.device));
+            let instances = vec![Instance {
+                position: cgmath::Vector3{x: 0.0, y: 0.0, z: 0.0},
+                rotation: cgmath::Quaternion::new(0.0, 0.0, 0.0, 0.0),
+            }];
+            self.model_instances.push(ModelInstances::new(model, &self.device, instances));
         }
     }
     
@@ -626,14 +637,25 @@ impl State {
 
             // render()
 
-            render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
             render_pass.set_pipeline(&self.render_pipeline);
+            /*
+            render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
             //TODO: add draw_model_instance for each ModelInstance
             render_pass.draw_model_instanced(
                 &self.obj_model,
                 0..self.instances.len() as u32,
                 &self.camera_bind_group,
             );
+            */
+
+            for model_instance in self.model_instances.iter() {
+                render_pass.set_vertex_buffer(1, model_instance.instance_buffer.slice(..));
+                render_pass.draw_model_instanced(
+                    &model_instance.model,
+                    0..model_instance.instances.len() as u32,
+                    &self.camera_bind_group,
+                );
+            }
 
 
             
@@ -702,6 +724,14 @@ pub async fn run() {
     }
 
     let mut state = State::new(window).await;
+
+    let obj_model = //Move this into a start function in state maybe
+    resources::load_model("french_bulldog.obj", &state.device, &state.queue, &state.texture_bind_group_layout)
+        .await
+        .unwrap();
+
+    state.instance_from_model(obj_model);
+
 
     event_loop.run(move |event, _, control_flow| {
         
