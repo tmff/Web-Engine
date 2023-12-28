@@ -21,12 +21,12 @@ use winit::{
 
 use winit::window::Window;
 
-use cgmath::prelude::*;
+use cgmath::{prelude::*, Vector3, Quaternion};
 
 
 use wasm_timer::Instant;
 
-use model::{DrawModel,Vertex};
+use model::{DrawModel,Vertex, Model};
 
 struct ModelInstances {
     model : model::Model,
@@ -208,6 +208,7 @@ struct State{
     last_frame_time : Instant,
     frame_times : Vec<u128>,
     obj_model: model::Model,
+    model_instances: Vec<ModelInstances>,
 }
 
 impl State {
@@ -465,7 +466,6 @@ impl State {
             },
             multiview: None,
 
-            
 
         });
 
@@ -504,6 +504,7 @@ impl State {
             last_frame_time: Instant::now(),
             frame_times: vec![],
             obj_model,
+            model_instances:vec![],
         }
     }
 
@@ -568,6 +569,22 @@ impl State {
         
     }
 
+    fn instance_from_model(&mut self, model: model::Model) {
+        let model_name = model.name.clone();
+        
+        if let Some(instance) = self.model_instances.iter_mut().find(|i| i.model.name == model_name) { //Maybe change comparison to model file hash
+            // Model instance found, push new instance to instances
+            instance.instances.push(Instance {
+                position: cgmath::Vector3{x: 0.0, y: 0.0, z: 0.0},
+                rotation: cgmath::Quaternion::new(0.0, 0.0, 0.0, 0.0),
+            });
+        } else {
+            // No existing model instance, create a new one and push to model_instances
+            self.model_instances.push(ModelInstances::new(model, &self.device));
+        }
+    }
+    
+
 
 
     fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
@@ -611,6 +628,7 @@ impl State {
 
             render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
             render_pass.set_pipeline(&self.render_pipeline);
+            //TODO: add draw_model_instance for each ModelInstance
             render_pass.draw_model_instanced(
                 &self.obj_model,
                 0..self.instances.len() as u32,

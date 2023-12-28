@@ -168,7 +168,7 @@ pub async fn load_model(
         })
         .collect::<Vec<_>>();
 
-    Ok(model::Model { meshes, materials })
+    Ok(model::Model { name: file_name.to_owned(),meshes, materials,})
 }
 
 
