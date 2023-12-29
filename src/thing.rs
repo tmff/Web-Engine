@@ -1,24 +1,25 @@
-use crate::{Instance};
+use crate::Instance;
 
-use crate::physics::{RigidBody};
+use crate::physics::RigidBody;
 
 
-pub struct Thing{
+pub struct Thing<'a>{
     pub position: cgmath::Vector3<f32>,
     pub rotation: cgmath::Quaternion<f32>,
-    instance: Instance,
+    instance: &'a mut Instance,
     rigid_body: RigidBody,
 }
 
 
-impl Thing{
-    pub fn new(position: cgmath::Vector3<f32>, rotation: cgmath::Quaternion<f32>, instance: Instance) -> Self {
-        let rigid_body = RigidBody::new(position,
-            rotation,
+impl<'a> Thing<'a>{
+    pub fn new(instance: &'a mut Instance) -> Self {
+        let rigid_body = RigidBody::new(
+            instance.position,
+            instance.rotation,
             cgmath::Vector3::new(0.0, 0.0, 0.0), cgmath::Vector3::new(0.0, -9.81, 0.0), 1.0);
         Self {
-            position,
-            rotation,
+            position: instance.position,
+            rotation: instance.rotation,
             instance,
             rigid_body,
         }

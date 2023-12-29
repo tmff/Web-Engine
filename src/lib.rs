@@ -1,3 +1,4 @@
+//use thing::Thing;
 #[cfg(target_arch="wasm32")]
 use wasm_bindgen::prelude::*;
 
@@ -9,7 +10,7 @@ mod camera;
 mod gui;
 mod model;
 mod resources;
-mod thing;
+//mod thing;
 mod physics;
 
 
@@ -32,7 +33,6 @@ struct ModelInstances {
     model : model::Model,
     instances : Vec<Instance>,
     instance_buffer : wgpu::Buffer,
-    instances_data : Vec<InstanceRaw>,
 }
 
 impl ModelInstances {
@@ -46,12 +46,11 @@ impl ModelInstances {
                 usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
             }
         );
-        let instances_data = instances.iter().map(Instance::to_raw).collect::<Vec<_>>();
+
         Self {
             model,
             instances,
             instance_buffer,
-            instances_data,
         }
     }
 
@@ -94,6 +93,7 @@ pub enum CompareFunction {
 pub struct Instance {
     position: cgmath::Vector3<f32>,
     rotation: cgmath::Quaternion<f32>,
+    rigid_body: physics::RigidBody,
 }
 
 #[repr(C)]
@@ -109,9 +109,10 @@ impl Instance {
         }
     }
 
-    fn update_transform(&mut self, position: cgmath::Vector3<f32>, rotation: cgmath::Quaternion<f32>) {
-        self.position = position;
-        self.rotation = rotation;
+    fn update(&mut self, delta_time: f32) {
+        self.rigid_body.update(delta_time);
+        self.position = self.rigid_body.position;
+        self.rotation = self.rigid_body.rotation;
     }
 }
 
@@ -499,17 +500,14 @@ impl State {
             camera_buffer,
             camera_bind_group,
             camera_controller,
-            //instances,
-            //instance_buffer,
             depth_texture,
             gui,
             start_time: Instant::now(),
             data: Data::new(),
             last_frame_time: Instant::now(),
             frame_times: vec![],
-            //obj_model,
             model_instances:vec![],
-            texture_bind_group_layout
+            texture_bind_group_layout,
         }
     }
 
@@ -556,6 +554,35 @@ impl State {
         self.camera_uniform.update_view_proj(&self.camera);
         self.queue.write_buffer(&self.camera_buffer, 0, bytemuck::cast_slice(&[self.camera_uniform]));
 
+        //let model_instances_to_update: Vec<&ModelInstances> = vec![]; // List of model instances that have been changed this frame, write the buffer for these
+        let last_delta = self.get_last_delta() as f32 / 1000.0;
+
+
+        //Do all processing
+
+        //This might be bad for performance, but for now updating every model instance buffer every frame will work
+        for i in 0..self.model_instances.len() {
+            // Accessing each instance mutably
+            for instance in self.model_instances[i].instances.iter_mut() {
+                instance.update(last_delta);
+            }
+        
+            // Preparing data for the buffer
+            let instance_data = self.model_instances[i]
+                .instances
+                .iter()
+                .map(Instance::to_raw)
+                .collect::<Vec<_>>();
+        
+            // Writing data to the buffer
+            self.queue.write_buffer(
+                &self.model_instances[i].instance_buffer,
+                0,
+                bytemuck::cast_slice(&instance_data),
+            );
+        }
+        
+
         /*
         for i in self.instances.iter_mut(){
             let amount = cgmath::Quaternion::from_angle_y(cgmath::Rad(self.data.rotation_speed));
@@ -576,23 +603,30 @@ impl State {
         
     }
 
-    fn instance_from_model(&mut self, model: model::Model) {
+    fn instance_from_model(&mut self, model: model::Model){
         let model_name = model.name.clone();
+
+        let mut new_instance = Instance {
+            position: cgmath::Vector3{x: 0.0, y: 0.0, z: 0.0},
+            rotation: cgmath::Quaternion::new(0.0, 0.0, 0.0, 0.0),
+            rigid_body: physics::RigidBody::new(
+                cgmath::Vector3{x: 0.0, y: 0.0, z: 0.0},
+                cgmath::Quaternion::new(0.0, 0.0, 0.0, 0.0),
+                cgmath::Vector3{x: 0.0, y: 0.0, z: 0.0},
+                cgmath::Vector3{x: 0.0, y: -9.81, z: 0.0},
+                1.0,
+            ),
+        };
         
         if let Some(instance) = self.model_instances.iter_mut().find(|i| i.model.name == model_name) { //Maybe change comparison to model file hash
             // Model instance found, push new instance to instances
-            instance.instances.push(Instance {
-                position: cgmath::Vector3{x: 0.0, y: 0.0, z: 0.0},
-                rotation: cgmath::Quaternion::new(0.0, 0.0, 0.0, 0.0),
-            });
+            instance.instances.push(new_instance);
         } else {
             // No existing model instance, create a new one and push to model_instances
-            let instances = vec![Instance {
-                position: cgmath::Vector3{x: 0.0, y: 0.0, z: 0.0},
-                rotation: cgmath::Quaternion::new(0.0, 0.0, 0.0, 0.0),
-            }];
+            let instances = vec![new_instance];
             self.model_instances.push(ModelInstances::new(model, &self.device, instances));
         }
+
     }
     
 
