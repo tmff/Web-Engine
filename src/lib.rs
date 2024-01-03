@@ -59,12 +59,14 @@ impl ModelInstances {
 
 pub struct Data{
     rotation_speed: f32,
+    clear_color: [f32; 4],
 }
 
 impl Data {
     pub fn new() -> Self {
         Self {
             rotation_speed: 2.0 * std::f32::consts::PI / 60.0,
+            clear_color: [0.1, 0.2, 0.3, 1.0],
         }
     }
 }
@@ -529,12 +531,6 @@ impl State {
     fn input(&mut self, event: &WindowEvent) -> bool {
         match event {
             WindowEvent::CursorMoved { position, .. } => {
-                self.clear_color = wgpu::Color {
-                    r: position.x as f64 / self.size.width as f64,
-                    g: position.y as f64 / self.size.height as f64,
-                    b: 1.0,
-                    a: 1.0,
-                };
             }
             _ => {},
         }
@@ -715,8 +711,15 @@ impl State {
                 "Frame time: {}ms",
                 avg_frame_time,
             )));
-            ui.add(egui::Slider::new(&mut self.data.rotation_speed, 0.0..=1.0).text("Rotation Speed"));
+            //ui.add(egui::Slider::new(&mut self.data.rotation_speed, 0.0..=1.0).text("Rotation Speed"));
+            ui.color_edit_button_rgba_premultiplied(&mut self.data.clear_color);
         });
+        self.clear_color = wgpu::Color {
+            r: self.data.clear_color[0] as f64,
+            g: self.data.clear_color[1] as f64,
+            b: self.data.clear_color[2] as f64,
+            a: self.data.clear_color[3] as f64,
+        };
     }
 
     fn get_last_delta(&self) -> u128 {
