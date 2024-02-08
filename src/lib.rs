@@ -1,8 +1,9 @@
+use gloo::file::Blob;
 //use thing::Thing;
 #[cfg(target_arch="wasm32")]
 use wasm_bindgen::prelude::*;
 
-use std::iter;
+use std::{collections::HashMap, iter};
 use wgpu::util::DeviceExt;
 
 mod texture;
@@ -773,7 +774,7 @@ pub async fn run() {
 
     state.instance_from_model(obj_model);
 
-    get_files().unwrap();
+    resources::get_files().unwrap();
 
 
     event_loop.run(move |event, _, control_flow| {
@@ -827,33 +828,6 @@ pub async fn run() {
         
         _ => {}
     }});
-}
-
-
-fn get_files() -> Result<(), JsValue> {
-    let window = web_sys::window().expect("should have window");
-    let document = window.document().expect("should have document");
-    let file_input = document.get_element_by_id("file-input").expect("should have #file-input");
-    let file_input : web_sys::HtmlInputElement = file_input.dyn_into::<HtmlInputElement>()?;
-
-    let onchange = Closure::wrap(Box::new(move |e: web_sys::Event| {
-        let input: HtmlInputElement = e.target().unwrap().dyn_into().unwrap();
-        wasm_bindgen_futures::spawn_local(file_callback(input.files()));
-    }) as Box<dyn FnMut(_)>);
-
-    file_input.set_onchange(Some(onchange.as_ref().unchecked_ref()));
-    onchange.forget(); // This is important to avoid the closure being garbage collected
-
-    Ok(())
-}
-
-async fn file_callback(files: Option<FileList>) {
-    let files = gloo::file::FileList::from(files.expect_throw("empty files"));
-    for file in files.iter() {
-        let data = gloo::file::futures::read_as_bytes(file)
-            .await
-            .expect_throw("read file");
-    }
 }
 
 
