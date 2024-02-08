@@ -14,12 +14,39 @@
 </head>
 
 <body id="wasm-example">
-  <script type="module">
-      import init from "./pkg/final_year_project.js";
-      init().then(() => {
-          console.log("WASM Loaded");
-      });
-  </script>
+    <script type="module">
+        import init from "./pkg/final_year_project.js";
+
+        let loadedFiles = [];
+
+        window.LoadApp = function (){
+            init().then(() => {
+                console.log("WASM Loaded");
+            });
+        }
+
+        document.getElementById('fileInput').addEventListener('change', function(event) {
+            const files = event.target.files;
+            for (let i = 0; i < files.length; i++) {
+                const reader = new FileReader();
+                reader.onload = (function(file) {
+                    return function(e) {
+                        // Store file content in an array or similar structure
+                        loadedFiles.push({
+                            name: file.name,
+                            type: file.type,
+                            size: file.size,
+                            content: new Uint8Array(e.target.result)
+                        });
+                    };
+                })(files[i]);
+                reader.readAsArrayBuffer(files[i]);
+            }
+        });
+
+    </script>
+    <input type="file" id="fileInput" multiple>
+    <button onclick="LoadApp()">Load App</button>
 </body>
 
 </html>
