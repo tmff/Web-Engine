@@ -17,19 +17,12 @@
     <script type="module">
         import init from "./pkg/final_year_project.js";
 
-        let loadedFiles = [];
-
-        window.LoadApp = function (){
-            init().then(() => {
-                console.log("WASM Loaded");
-            });
-        }
-
+        init().then(() => {
+            console.log("WASM Loaded");
+        });
 
 
     </script>
-    <input type="file" id="file-input" multiple>
-    <button onclick="LoadApp()">Load App</button>
 </body>
 
 </html>

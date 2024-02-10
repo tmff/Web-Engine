@@ -176,7 +176,7 @@ pub async fn load_model(
     Ok(model::Model { name: file_name.to_owned(),meshes, materials,})
 }
 
-
+/*
 pub async fn load_model_from_buffer(
     file_name: &str,
     obj_buffer : String,
@@ -284,6 +284,8 @@ pub async fn load_model_from_buffer(
 }
 
 
+Doesnt work :(
+
 struct ObjFile {
     name: String,
     mesh: String,
@@ -295,23 +297,23 @@ pub fn get_files() -> Result<(), JsValue> {
     let document = window.document().expect("should have document");
     let file_input = document.get_element_by_id("file-input").expect("should have #file-input");
     let file_input : web_sys::HtmlInputElement = file_input.dyn_into::<HtmlInputElement>()?;
-
-
+    
+    
     let onchange = Closure::wrap(Box::new(move |e: web_sys::Event| {
         let input: HtmlInputElement = e.target().unwrap().dyn_into().unwrap();
         wasm_bindgen_futures::spawn_local(file_callback(input.files()));
     }) as Box<dyn FnMut(_)>);
-
+    
     file_input.set_onchange(Some(onchange.as_ref().unchecked_ref()));
     onchange.forget(); // This is important to avoid the closure being garbage collected
-
+    
     Ok(())
 }
 
 async fn file_callback(files: Option<FileList>) {
     let mut obj_files = HashMap::<String, ObjFile>::new(); 
     let mut textures = HashMap::<String, Vec::<u8>>::new();
-
+    
     let files = gloo::file::FileList::from(files.expect_throw("empty files"));
     for file in files.iter() {
         //match based on file type
@@ -319,43 +321,44 @@ async fn file_callback(files: Option<FileList>) {
         match name.split('.').last().unwrap() {
             "obj" => {
                 let data = gloo::file::futures::read_as_text(file)
-                    .await
-                    .expect_throw("read file obj");
-                if obj_files.contains_key(&name) {
-                    let obj_file = obj_files.get_mut(&name).unwrap();
-                    obj_file.mesh = data;
-                } else {
-                    obj_files.insert(name.clone(), ObjFile {
-                        name: name,
-                        mesh: data,
-                        material: String::new(),
-                    });
-                }
-            },
-            "mtl" => {
-                let data = gloo::file::futures::read_as_text(file)
-                    .await
-                    .expect_throw("read file mtl");
-                if obj_files.contains_key(&name) {
-                    let obj_file = obj_files.get_mut(&name).unwrap();
-                    obj_file.material = data;
-                } else {
-                    obj_files.insert(name.clone(), ObjFile {
-                        name: name,
-                        mesh: String::new(),
-                        material: data,
-                    });
-                }
-            },
-            "png" | "jpg" | "jpeg" => {
-                //Handle as binary
-                textures.insert(file.name(),gloo::file::futures::read_as_bytes(file).await.expect_throw("read file texture"));
-            },
-            _ => {} //Invalid filetype
+                .await
+                .expect_throw("read file obj");
+            if obj_files.contains_key(&name) {
+                let obj_file = obj_files.get_mut(&name).unwrap();
+                obj_file.mesh = data;
+            } else {
+                obj_files.insert(name.clone(), ObjFile {
+                    name: name,
+                    mesh: data,
+                    material: String::new(),
+                });
+            }
+        },
+        "mtl" => {
+            let data = gloo::file::futures::read_as_text(file)
+            .await
+            .expect_throw("read file mtl");
+        if obj_files.contains_key(&name) {
+            let obj_file = obj_files.get_mut(&name).unwrap();
+            obj_file.material = data;
+        } else {
+            obj_files.insert(name.clone(), ObjFile {
+                name: name,
+                mesh: String::new(),
+                material: data,
+            });
         }
-        //obj and mtl are strings, textures are blobs
-        //expect .obj, mtl and texture files 
-        //convert into respective types i.e. obj, textures and materials
-        //create model instance for each model with no instance
-    }
+    },
+    "png" | "jpg" | "jpeg" => {
+        //Handle as binary
+        textures.insert(file.name(),gloo::file::futures::read_as_bytes(file).await.expect_throw("read file texture"));
+    },
+    _ => {} //Invalid filetype
 }
+//obj and mtl are strings, textures are blobs
+//expect .obj, mtl and texture files 
+//convert into respective types i.e. obj, textures and materials
+//create model instance for each model with no instance
+}
+}
+*/

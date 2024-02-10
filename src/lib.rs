@@ -32,7 +32,11 @@ use model::{DrawModel,Vertex, Model};
 
 use web_sys::{HtmlInputElement, FileList, File};
 
-
+#[derive(Debug, PartialEq, Clone, Copy,Eq, Hash)]
+enum Models {
+    French_Bulldog,
+    Cube,
+}
 
 struct ModelInstances {
     model : model::Model,
@@ -59,12 +63,37 @@ impl ModelInstances {
         }
     }
 
+    pub fn add_instance(&mut self ,device : &wgpu::Device){
+        self.instances.push(Instance{
+            position: cgmath::Vector3{x: 0.0, y: 0.0, z: 0.0},
+            rotation: cgmath::Quaternion::new(0.0, 0.0, 0.0, 0.0),
+            rigid_body: physics::RigidBody::new(
+                cgmath::Vector3{x: 0.0, y: 0.0, z: 0.0},
+                cgmath::Quaternion::new(0.0, 0.0, 0.0, 0.0),
+                cgmath::Vector3{x: 0.0, y: 0.0, z: 0.0},
+                cgmath::Vector3{x: 0.0, y: -9.81, z: 0.0},
+                1.0,
+            ),
+        });
+
+        let instance_data = self.instances.iter().map(Instance::to_raw).collect::<Vec<_>>();
+
+        self.instance_buffer = device.create_buffer_init(
+            &wgpu::util::BufferInitDescriptor {
+                label: Some("Instance Buffer"),
+                contents: bytemuck::cast_slice(&instance_data),
+                usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+            }
+        );
+    }
+
 }
 
 
 pub struct Data{
     rotation_speed: f32,
     clear_color: [f32; 4],
+    model_selected: Models,
 }
 
 impl Data {
@@ -72,6 +101,7 @@ impl Data {
         Self {
             rotation_speed: 2.0 * std::f32::consts::PI / 60.0,
             clear_color: [0.1, 0.2, 0.3, 1.0],
+            model_selected: Models::French_Bulldog,
         }
     }
 }
@@ -629,6 +659,10 @@ impl State {
         }
 
     }
+
+    fn add_model(&mut self, model: model::Model){
+        self.model_instances.push(ModelInstances::new(model, &self.device, vec![]));
+    }
     
 
 
@@ -703,12 +737,15 @@ impl State {
         Ok(())
     }
 
+    fn add_instance(&mut self, index : usize){
+        self.model_instances[index].add_instance(&self.device);
+    }
+
     fn setup_gui(&mut self){
         self.gui.begin_new_frame(self.start_time.elapsed().as_secs_f64());
 
         let platform = self.gui.platform_mut();
         let avg_frame_time = self.frame_times.iter().sum::<u128>() / (self.frame_times.len() + 1) as u128;
-
         egui::Window::new("Info")
         .resizable(true)
         .show(&platform.context(), |ui| {
@@ -716,8 +753,19 @@ impl State {
                 "Frame time: {}ms",
                 avg_frame_time,
             )));
-            //ui.add(egui::Slider::new(&mut self.data.rotation_speed, 0.0..=1.0).text("Rotation Speed"));
             ui.color_edit_button_rgba_premultiplied(&mut self.data.clear_color);
+            //spawn object button
+            egui::ComboBox::from_label("Select one!")
+                .selected_text(format!("{:?}", self.data.model_selected))
+                .show_ui(ui, |ui| {
+                    ui.selectable_value(&mut self.data.model_selected, Models::French_Bulldog, "French Bulldog");
+                    ui.selectable_value(&mut self.data.model_selected, Models::Cube, "Cube");
+                }
+            );
+            if ui.add(egui::Button::new("Spawn Object")).clicked(){
+                self.add_instance(self.data.model_selected as usize);
+            }
+
         });
         self.clear_color = wgpu::Color {
             r: self.data.clear_color[0] as f64,
@@ -771,10 +819,15 @@ pub async fn run() {
     resources::load_model("french_bulldog.obj", &state.device, &state.queue, &state.texture_bind_group_layout)
         .await
         .unwrap();
+    state.add_model(obj_model);
+    
+    let cube_model = resources::load_model("cube.obj", &state.device, &state.queue, &state.texture_bind_group_layout)
+        .await
+        .unwrap();
+    state.add_model(cube_model);
 
-    state.instance_from_model(obj_model);
 
-    resources::get_files().unwrap();
+
 
 
     event_loop.run(move |event, _, control_flow| {
