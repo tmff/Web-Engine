@@ -595,7 +595,7 @@ impl State {
         for i in 0..self.model_instances.len() {
             // Accessing each instance mutably
             for instance in self.model_instances[i].instances.iter_mut() {
-                instance.update(last_delta);
+                instance.update(0.02);
             }
         
             // Preparing data for the buffer
@@ -613,24 +613,6 @@ impl State {
             );
         }
         
-
-        /*
-        for i in self.instances.iter_mut(){
-            let amount = cgmath::Quaternion::from_angle_y(cgmath::Rad(self.data.rotation_speed));
-            i.rotation = i.rotation * amount;
-        }
-        let instance_data = self
-        .instances
-        .iter()
-        .map(Instance::to_raw)
-        .collect::<Vec<_>>();
-
-    self.queue.write_buffer(
-            &self.instance_buffer,
-            0,
-            bytemuck::cast_slice(&instance_data),
-        );
-        */
         
     }
 
@@ -764,6 +746,13 @@ impl State {
             );
             if ui.add(egui::Button::new("Spawn Object")).clicked(){
                 self.add_instance(self.data.model_selected as usize);
+            }
+            if ui.add(egui::Button::new("Spin")).clicked(){
+                for i in self.model_instances.iter_mut(){
+                    for j in i.instances.iter_mut(){
+                        j.rigid_body.add_torque_impulse(cgmath::Vector3{x: 0.0, y: 0.0, z: 0.1});
+                    }
+                }
             }
 
         });
