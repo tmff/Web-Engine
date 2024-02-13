@@ -66,10 +66,7 @@ impl RigidBody {
 
         let normalised_rotation = new_orientation.normalize();
         self.rotation = normalised_rotation;
-        log!("Rotation: {:?}", self.rotation.s.to_string());
-        log!("Rotation: {:?}", self.rotation.v.x.to_string());
-        log!("Rotation: {:?}", self.rotation.v.y.to_string());
-        log!("Rotation: {:?}", self.rotation.v.z.to_string());
+
 
     }
 

@@ -1,4 +1,5 @@
 use gloo::file::Blob;
+use js_sys::Math::random;
 //use thing::Thing;
 #[cfg(target_arch="wasm32")]
 use wasm_bindgen::prelude::*;
@@ -66,10 +67,10 @@ impl ModelInstances {
     pub fn add_instance(&mut self ,device : &wgpu::Device){
         self.instances.push(Instance{
             position: cgmath::Vector3{x: 0.0, y: 0.0, z: 0.0},
-            rotation: cgmath::Quaternion::new(0.0, 0.0, 0.0, 0.0),
+            rotation: cgmath::Quaternion::from_axis_angle(cgmath::Vector3::unit_z(), cgmath::Deg(0.0)),
             rigid_body: physics::RigidBody::new(
                 cgmath::Vector3{x: 0.0, y: 0.0, z: 0.0},
-                cgmath::Quaternion::new(0.0, 0.0, 0.0, 0.0),
+                cgmath::Quaternion::from_axis_angle(cgmath::Vector3::unit_z(), cgmath::Deg(0.0)),
                 cgmath::Vector3{x: 0.0, y: 0.0, z: 0.0},
                 cgmath::Vector3{x: 0.0, y: -9.81, z: 0.0},
                 1.0,
@@ -595,7 +596,7 @@ impl State {
         for i in 0..self.model_instances.len() {
             // Accessing each instance mutably
             for instance in self.model_instances[i].instances.iter_mut() {
-                instance.update(0.02);
+                instance.update(last_delta);
             }
         
             // Preparing data for the buffer
@@ -619,12 +620,12 @@ impl State {
     fn instance_from_model(&mut self, model: model::Model){
         let model_name = model.name.clone();
 
-        let mut new_instance = Instance {
+        let new_instance = Instance {
             position: cgmath::Vector3{x: 0.0, y: 0.0, z: 0.0},
-            rotation: cgmath::Quaternion::new(0.0, 0.0, 0.0, 0.0),
+            rotation: cgmath::Quaternion::from_axis_angle(cgmath::Vector3::unit_z(), cgmath::Deg(0.0)),
             rigid_body: physics::RigidBody::new(
                 cgmath::Vector3{x: 0.0, y: 0.0, z: 0.0},
-                cgmath::Quaternion::new(0.0, 0.0, 0.0, 0.0),
+                cgmath::Quaternion::from_axis_angle(cgmath::Vector3::unit_z(), cgmath::Deg(0.0)),
                 cgmath::Vector3{x: 0.0, y: 0.0, z: 0.0},
                 cgmath::Vector3{x: 0.0, y: -9.81, z: 0.0},
                 1.0,
@@ -750,7 +751,7 @@ impl State {
             if ui.add(egui::Button::new("Spin")).clicked(){
                 for i in self.model_instances.iter_mut(){
                     for j in i.instances.iter_mut(){
-                        j.rigid_body.add_torque_impulse(cgmath::Vector3{x: 0.0, y: 0.0, z: 0.1});
+                        j.rigid_body.add_torque_impulse(cgmath::Vector3{x: random() as f32, y: random() as f32, z: random() as f32});
                     }
                 }
             }
