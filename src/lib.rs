@@ -14,7 +14,14 @@ mod model;
 mod resources;
 //mod thing;
 mod physics;
+mod component;
 
+mod components {
+    pub mod paddle;
+
+}
+
+use crate::components::paddle;
 
 use winit::{
     event::*,
@@ -72,9 +79,12 @@ impl ModelInstances {
                 cgmath::Vector3{x: 0.0, y: 0.0, z: 0.0},
                 cgmath::Quaternion::from_axis_angle(cgmath::Vector3::unit_z(), cgmath::Deg(0.0)),
                 cgmath::Vector3{x: 0.0, y: 0.0, z: 0.0},
-                cgmath::Vector3{x: 0.0, y: -9.81, z: 0.0},
+                cgmath::Vector3{x: 0.0, y: 0.0, z: 0.0},
                 1.0,
             ),
+            component: Some(Box::new(
+                paddle::Paddle::new()
+            )),
         });
 
         let instance_data = self.instances.iter().map(Instance::to_raw).collect::<Vec<_>>();
@@ -127,11 +137,13 @@ pub enum CompareFunction {
     Always = 8,
 }
 
+use crate::component::Component;
 
 pub struct Instance {
     position: cgmath::Vector3<f32>,
     rotation: cgmath::Quaternion<f32>,
     rigid_body: physics::RigidBody,
+    component : Option<Box<dyn Component>>,
 }
 
 #[repr(C)]
@@ -148,6 +160,10 @@ impl Instance {
     }
 
     fn update(&mut self, delta_time: f32) {
+        if let Some(component) = &mut self.component {
+            component.update(&mut self.rigid_body, delta_time);
+        }
+
         self.rigid_body.update(delta_time);
         self.position = self.rigid_body.position;
         self.rotation = self.rigid_body.rotation;
@@ -513,10 +529,6 @@ impl State {
         });
 
         let camera_controller = camera::CameraController::new(0.2);
-        let obj_model =
-    resources::load_model("french_bulldog.obj", &device, &queue, &texture_bind_group_layout)
-        .await
-        .unwrap();
 
 
 
@@ -569,6 +581,13 @@ impl State {
             WindowEvent::CursorMoved { position, .. } => {
             }
             _ => {},
+        }
+        for i in 0..self.model_instances.len() {
+            if let Some(instance) = self.model_instances[i].instances.iter_mut().find(|i| i.component.is_some()) {
+                if let Some(component) = &mut instance.component {
+                    component.input(event);
+                }
+            }
         }
         self.camera_controller.process_events(event)
     }
@@ -629,7 +648,9 @@ impl State {
                 cgmath::Vector3{x: 0.0, y: 0.0, z: 0.0},
                 cgmath::Vector3{x: 0.0, y: -9.81, z: 0.0},
                 1.0,
+
             ),
+            component: None,
         };
         
         if let Some(instance) = self.model_instances.iter_mut().find(|i| i.model.name == model_name) { //Maybe change comparison to model file hash

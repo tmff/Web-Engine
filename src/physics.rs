@@ -37,22 +37,22 @@ impl RigidBody {
     }
 
     pub fn update(&mut self, delta_time: f32) {
-        let force = self.compute_force();
-        let acceleration = force / self.mass;
+        let acceleration = self.acceleration;
         self.velocity += acceleration * delta_time;
         self.position += self.velocity * delta_time;
         self.update_rotation(delta_time);
     }
 
-    fn compute_force(&mut self) -> cgmath::Vector3<f32> {
-        cgmath::Vector3::new(0.0, 0.0, 0.0)
-    }
 
     pub fn add_torque_impulse(&mut self, torque: cgmath::Vector3<f32>) {
         // Change in angular velocity = i^-1 * torque
         let i = self.moment_of_inertia().invert().unwrap();
         let delta_angular_velocity = i * torque;
         self.angular_velocity += delta_angular_velocity;
+    }
+
+    pub fn add_force(&mut self, force: cgmath::Vector3<f32>) {
+        self.acceleration += force / self.mass;
     }
 
     fn update_rotation(&mut self ,delta_time: f32) {
@@ -66,8 +66,6 @@ impl RigidBody {
 
         let normalised_rotation = new_orientation.normalize();
         self.rotation = normalised_rotation;
-
-
     }
 
 
