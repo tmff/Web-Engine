@@ -4,6 +4,7 @@ use winit::{
 };
 
 use crate::physics::RigidBody;
+use gloo::console::log;
 
 pub struct Paddle {
     is_forward_pressed: bool,
@@ -35,7 +36,7 @@ impl Component for Paddle{
         if self.is_left_pressed {
             rigidbody.velocity.x = -10.0;
         }
-        if self.is_right_pressed {
+        else if self.is_right_pressed {
             rigidbody.velocity.x = 10.0;
         }
         else{

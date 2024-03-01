@@ -16,6 +16,8 @@ pub struct RigidBody {
     pub shape: Shape,
 }
 
+
+#[derive(Copy,Clone)]
 pub enum Shape {
     Sphere(f32),
     Box(cgmath::Vector3<f32>),
@@ -53,6 +55,34 @@ impl RigidBody {
 
     pub fn add_force(&mut self, force: cgmath::Vector3<f32>) {
         self.acceleration += force / self.mass;
+    }
+
+    pub fn is_intersecting(&self, other: &RigidBody) -> bool {
+        match (self.shape, other.shape) {
+            (Shape::Sphere(radius1), Shape::Sphere(radius2)) => {
+                let distance = (self.position - other.position).magnitude();
+                distance < radius1 + radius2
+            }
+            (Shape::Box(size1), Shape::Box(size2)) => {
+                let half_size1 = size1 / 2.0;
+                let half_size2 = size2 / 2.0;
+                let distance = (self.position - other.position);
+                distance.x.abs() < half_size1.x + half_size2.x &&
+                    distance.y.abs() < half_size1.y + half_size2.y &&
+                    distance.z.abs() < half_size1.z + half_size2.z
+            }
+            (Shape::Sphere(radius), Shape::Box(size)) => {
+                let half_size = size / 2.0;
+                let mut distance = (self.position - other.position);
+                distance.x = distance.x.max(-half_size.x).min(half_size.x);
+                distance.y = distance.y.max(-half_size.y).min(half_size.y);
+                distance.z = distance.z.max(-half_size.z).min(half_size.z);
+                distance.magnitude() < radius
+            }
+            (Shape::Box(size), Shape::Sphere(radius)) => other.is_intersecting(self),
+
+            _ => unimplemented!("is_intersecting not implemented for this shape"),
+        }
     }
 
     fn update_rotation(&mut self ,delta_time: f32) {

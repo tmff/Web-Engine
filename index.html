@@ -7,8 +7,22 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Final Year Project</title>
     <style>
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f2f2f2;
+            font-family: 'Arial', sans-serif;
+        }
+
         canvas {
             background-color: black;
+            display: block;
+            margin: auto;
+            border: 2px solid #333;
         }
     </style>
 </head>
@@ -20,8 +34,6 @@
         init().then(() => {
             console.log("WASM Loaded");
         });
-
-
     </script>
 </body>
 
