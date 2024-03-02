@@ -24,7 +24,7 @@ mod components {
 use crate::components::paddle;
 
 use winit::{
-    event::*,
+    event::{self, *},
     event_loop::{ControlFlow, EventLoop},
     window::WindowBuilder,
 };
@@ -167,6 +167,12 @@ impl Instance {
         self.rigid_body.update(delta_time);
         self.position = self.rigid_body.position;
         self.rotation = self.rigid_body.rotation;
+    }
+
+    fn input(&mut self, event: &event::WindowEvent){
+        if let Some(component) = &mut self.component {
+            component.input(event);
+        }
     }
 }
 
@@ -583,10 +589,8 @@ impl State {
             _ => {},
         }
         for i in 0..self.model_instances.len() {
-            if let Some(instance) = self.model_instances[i].instances.iter_mut().find(|i| i.component.is_some()) {
-                if let Some(component) = &mut instance.component {
-                    component.input(event);
-                }
+            for instance in self.model_instances[i].instances.iter_mut() {
+                instance.input(event)
             }
         }
         self.camera_controller.process_events(event)
