@@ -4,6 +4,6 @@ use crate::physics::RigidBody;
 
 pub trait Component {
     fn start(&mut self);
-    fn update(&mut self,rigidbody : &mut RigidBody, dt: f32);
+    fn update(&mut self, dt: f32,rigidbodys : &mut Vec<RigidBody>,body_index: usize);
     fn input(&mut self,event: &event::WindowEvent) -> bool;
 }

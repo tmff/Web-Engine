@@ -6,6 +6,7 @@ use cgmath::SquareMatrix;
 use cgmath::Quaternion;
 use gloo::console::log;
 
+#[derive(Clone)]
 pub struct RigidBody {
     pub position: cgmath::Vector3<f32>,
     pub rotation: cgmath::Quaternion<f32>,

@@ -1,7 +1,6 @@
 use crate::component::Component;
-use winit::{
-    event::*,
-};
+use winit::event::*;
+
 
 use crate::physics::RigidBody;
 use gloo::console::log;
@@ -31,8 +30,21 @@ impl Component for Paddle{
     fn start(&mut self){
         //initialize paddle
     }
-    fn update(&mut self,rigidbody : &mut RigidBody, dt: f32){
+    fn update(&mut self, dt: f32, rigidbodys : &mut Vec<RigidBody>,body_index: usize){
         //update paddle
+        let test = rigidbodys.clone();
+
+        
+        let rigidbody = &mut rigidbodys[body_index];
+        for i in 0..test.len(){
+            if i != body_index{
+                let other = &test[i];
+                if rigidbody.is_intersecting(other){
+
+                }
+            }
+        }
+        
         if self.is_left_pressed {
             rigidbody.velocity.x = -10.0;
         }

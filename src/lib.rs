@@ -1,5 +1,6 @@
 use gloo::file::Blob;
 use js_sys::Math::random;
+use physics::RigidBody;
 //use thing::Thing;
 #[cfg(target_arch="wasm32")]
 use wasm_bindgen::prelude::*;
@@ -71,17 +72,21 @@ impl ModelInstances {
         }
     }
 
-    pub fn add_instance(&mut self ,device : &wgpu::Device){
+    pub fn add_instance(&mut self ,device : &wgpu::Device,rigidbodys : &mut Vec<physics::RigidBody>){
+        rigidbodys.push(RigidBody{
+            position: cgmath::Vector3{x: 0.0, y: 0.0, z: 0.0},
+            rotation: cgmath::Quaternion::from_axis_angle(cgmath::Vector3::unit_z(), cgmath::Deg(0.0)),
+            velocity: cgmath::Vector3{x: 0.0, y: 0.0, z: 0.0},
+            acceleration: cgmath::Vector3{x: 0.0, y: 0.0, z: 0.0},
+            angular_velocity: cgmath::Vector3{x: 0.0, y: 0.0, z: 0.0},
+            mass: 1.0,
+            shape: physics::Shape::Box(cgmath::Vector3::new(1.0, 1.0, 1.0)),
+        
+        });
         self.instances.push(Instance{
             position: cgmath::Vector3{x: 0.0, y: 0.0, z: 0.0},
             rotation: cgmath::Quaternion::from_axis_angle(cgmath::Vector3::unit_z(), cgmath::Deg(0.0)),
-            rigid_body: physics::RigidBody::new(
-                cgmath::Vector3{x: 0.0, y: 0.0, z: 0.0},
-                cgmath::Quaternion::from_axis_angle(cgmath::Vector3::unit_z(), cgmath::Deg(0.0)),
-                cgmath::Vector3{x: 0.0, y: 0.0, z: 0.0},
-                cgmath::Vector3{x: 0.0, y: 0.0, z: 0.0},
-                1.0,
-            ),
+            rigid_body: rigidbodys.len() - 1,
             component: Some(Box::new(
                 paddle::Paddle::new()
             )),
@@ -142,7 +147,7 @@ use crate::component::Component;
 pub struct Instance {
     position: cgmath::Vector3<f32>,
     rotation: cgmath::Quaternion<f32>,
-    rigid_body: physics::RigidBody,
+    rigid_body: usize,
     component : Option<Box<dyn Component>>,
 }
 
@@ -159,14 +164,14 @@ impl Instance {
         }
     }
 
-    fn update(&mut self, delta_time: f32) {
+    fn update(&mut self, delta_time: f32,rigidbodys : &mut Vec<physics::RigidBody>) {
         if let Some(component) = &mut self.component {
-            component.update(&mut self.rigid_body, delta_time);
+            component.update( delta_time,rigidbodys, self.rigid_body);
         }
 
-        self.rigid_body.update(delta_time);
-        self.position = self.rigid_body.position;
-        self.rotation = self.rigid_body.rotation;
+        rigidbodys[self.rigid_body].update(delta_time);
+        self.position = rigidbodys[self.rigid_body].position;
+        self.rotation = rigidbodys[self.rigid_body].rotation;
     }
 
     fn input(&mut self, event: &event::WindowEvent){
@@ -273,6 +278,7 @@ struct State{
     //obj_model: model::Model,
     model_instances: Vec<ModelInstances>,
     texture_bind_group_layout: wgpu::BindGroupLayout,
+    rigidbodys: Vec<physics::RigidBody>,
 }
 
 impl State {
@@ -340,43 +346,6 @@ impl State {
 
         let diffuse_bytes = include_bytes!("allmyfellas.png"); // CHANGED!
         let diffuse_texture = texture::Texture::from_bytes(&device, &queue, diffuse_bytes, "allmyfellas.png").unwrap(); // CHANGED!
-
-
-
-        const NUM_INSTANCES_PER_ROW: u32 = 10;
-        //const INSTANCE_DISPLACEMENT: cgmath::Vector3<f32> = cgmath::Vector3::new(NUM_INSTANCES_PER_ROW as f32 * 0.5, 0.0, NUM_INSTANCES_PER_ROW as f32 * 0.5);
-
-        /*
-        const SPACE_BETWEEN: f32 = 15.0;
-        let instances = (0..NUM_INSTANCES_PER_ROW).flat_map(|z| {
-            (0..NUM_INSTANCES_PER_ROW).map(move |x| {
-                let x = SPACE_BETWEEN * (x as f32 - NUM_INSTANCES_PER_ROW as f32 / 2.0);
-                let z = SPACE_BETWEEN * (z as f32 - NUM_INSTANCES_PER_ROW as f32 / 2.0);
-        
-                let position = cgmath::Vector3 { x, y: 0.0, z };
-        
-                let rotation = if position.is_zero() {
-                    cgmath::Quaternion::from_axis_angle(cgmath::Vector3::unit_z(), cgmath::Deg(0.0))
-                } else {
-                    cgmath::Quaternion::from_axis_angle(position.normalize(), cgmath::Deg(45.0))
-                };
-        
-                Instance {
-                    position, rotation,
-                }
-            })
-        }).collect::<Vec<_>>();
-        
-        let instance_data = instances.iter().map(Instance::to_raw).collect::<Vec<_>>();
-        let instance_buffer = device.create_buffer_init(
-            &wgpu::util::BufferInitDescriptor {
-                label: Some("Instance Buffer"),
-                contents: bytemuck::cast_slice(&instance_data),
-                usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
-            }
-        );
-        */
-
 
         let texture_bind_group_layout =
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
@@ -564,6 +533,7 @@ impl State {
             frame_times: vec![],
             model_instances:vec![],
             texture_bind_group_layout,
+            rigidbodys: vec![],
         }
     }
 
@@ -619,7 +589,7 @@ impl State {
         for i in 0..self.model_instances.len() {
             // Accessing each instance mutably
             for instance in self.model_instances[i].instances.iter_mut() {
-                instance.update(last_delta);
+                instance.update(last_delta,self.rigidbodys.as_mut());
             }
         
             // Preparing data for the buffer
@@ -638,34 +608,6 @@ impl State {
         }
         
         
-    }
-
-    fn instance_from_model(&mut self, model: model::Model){
-        let model_name = model.name.clone();
-
-        let new_instance = Instance {
-            position: cgmath::Vector3{x: 0.0, y: 0.0, z: 0.0},
-            rotation: cgmath::Quaternion::from_axis_angle(cgmath::Vector3::unit_z(), cgmath::Deg(0.0)),
-            rigid_body: physics::RigidBody::new(
-                cgmath::Vector3{x: 0.0, y: 0.0, z: 0.0},
-                cgmath::Quaternion::from_axis_angle(cgmath::Vector3::unit_z(), cgmath::Deg(0.0)),
-                cgmath::Vector3{x: 0.0, y: 0.0, z: 0.0},
-                cgmath::Vector3{x: 0.0, y: -9.81, z: 0.0},
-                1.0,
-
-            ),
-            component: None,
-        };
-        
-        if let Some(instance) = self.model_instances.iter_mut().find(|i| i.model.name == model_name) { //Maybe change comparison to model file hash
-            // Model instance found, push new instance to instances
-            instance.instances.push(new_instance);
-        } else {
-            // No existing model instance, create a new one and push to model_instances
-            let instances = vec![new_instance];
-            self.model_instances.push(ModelInstances::new(model, &self.device, instances));
-        }
-
     }
 
     fn add_model(&mut self, model: model::Model){
@@ -746,7 +688,7 @@ impl State {
     }
 
     fn add_instance(&mut self, index : usize){
-        self.model_instances[index].add_instance(&self.device);
+        self.model_instances[index].add_instance(&self.device, &mut self.rigidbodys);
     }
 
     fn setup_gui(&mut self){
@@ -774,11 +716,7 @@ impl State {
                 self.add_instance(self.data.model_selected as usize);
             }
             if ui.add(egui::Button::new("Spin")).clicked(){
-                for i in self.model_instances.iter_mut(){
-                    for j in i.instances.iter_mut(){
-                        j.rigid_body.add_torque_impulse(cgmath::Vector3{x: random() as f32, y: random() as f32, z: random() as f32});
-                    }
-                }
+
             }
 
         });
@@ -840,8 +778,6 @@ pub async fn run() {
         .await
         .unwrap();
     state.add_model(cube_model);
-
-
 
 
 
