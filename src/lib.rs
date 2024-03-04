@@ -47,6 +47,13 @@ enum Models {
     Cube,
 }
 
+#[derive(Debug, PartialEq, Clone, Copy,Eq, Hash)]
+enum ComponentSelection{
+    None,
+    Paddle,
+    Ball,
+}
+ 
 struct ModelInstances {
     model : model::Model,
     instances : Vec<Instance>,
@@ -72,7 +79,7 @@ impl ModelInstances {
         }
     }
 
-    pub fn add_instance(&mut self ,device : &wgpu::Device,rigidbodys : &mut Vec<physics::RigidBody>,position : [f32; 3]){
+    pub fn add_instance(&mut self ,device : &wgpu::Device,rigidbodys : &mut Vec<physics::RigidBody>,position : [f32; 3],component : Option<Box<dyn component::Component>>){
         rigidbodys.push(RigidBody{
             position: cgmath::Vector3{x:position[0],y:position[1],z:position[2]},
             rotation: cgmath::Quaternion::from_axis_angle(cgmath::Vector3::unit_z(), cgmath::Deg(0.0)),
@@ -83,15 +90,11 @@ impl ModelInstances {
             shape: physics::Shape::Box(cgmath::Vector3::new(1.0, 1.0, 1.0)),
         
         });
-        //let component = paddle::Paddle::new();
-        let component = components::ball::Ball::new(); 
         self.instances.push(Instance{
             position: cgmath::Vector3{x:position[0],y:position[1],z:position[2]},
             rotation: cgmath::Quaternion::from_axis_angle(cgmath::Vector3::unit_z(), cgmath::Deg(0.0)),
             rigid_body: rigidbodys.len() - 1,
-            component: Some(Box::new(
-                component
-            )),
+            component,
             started: false,
         });
         
@@ -114,6 +117,7 @@ pub struct Data{
     clear_color: [f32; 4],
     model_selected: Models,
     position: [f32; 3],
+    component_selected: ComponentSelection,
 }
 
 impl Data {
@@ -122,6 +126,7 @@ impl Data {
             clear_color: [0.1, 0.2, 0.3, 1.0],
             model_selected: Models::French_Bulldog,
             position: [0.0, 0.0, 0.0],
+            component_selected: ComponentSelection::Paddle,
         }
     }
 }
@@ -689,7 +694,12 @@ impl State {
     }
 
     fn add_instance(&mut self, index : usize){
-        self.model_instances[index].add_instance(&self.device, &mut self.rigidbodys,self.data.position);
+        let component = match self.data.component_selected {
+            ComponentSelection::None => None,
+            ComponentSelection::Paddle => Some(Box::new(components::paddle::Paddle::new()) as Box<dyn Component>),
+            ComponentSelection::Ball => Some(Box::new(components::ball::Ball::new()) as Box<dyn Component>),
+        };
+        self.model_instances[index].add_instance(&self.device, &mut self.rigidbodys,self.data.position,component);
     }
 
     fn setup_gui(&mut self){
@@ -704,18 +714,25 @@ impl State {
                 "Frame time: {}ms",
                 avg_frame_time,
             )));
+            ui.color_edit_button_rgba_premultiplied(&mut self.data.clear_color);
             ui.add(egui::DragValue::new(
                 &mut self.data.position[0],
-            ));
+            ).prefix("x: "));
             ui.add(egui::DragValue::new(
                 &mut self.data.position[1],
-            ));
+            ).prefix("y: "));
             ui.add(egui::DragValue::new(
                 &mut self.data.position[2],
-            ));
-            ui.color_edit_button_rgba_premultiplied(&mut self.data.clear_color);
+            ).prefix("z: "));
             //spawn object button
-            egui::ComboBox::from_label("Select one!")
+            egui::ComboBox::from_label("Component!")
+                .selected_text(format!("{:?}", self.data.component_selected))
+                .show_ui(ui, |ui| {
+                    ui.selectable_value(&mut self.data.component_selected, ComponentSelection::Paddle, "Paddle");
+                    ui.selectable_value(&mut self.data.component_selected, ComponentSelection::Ball, "Ball");
+                }
+            );
+            egui::ComboBox::from_label("Model!")
                 .selected_text(format!("{:?}", self.data.model_selected))
                 .show_ui(ui, |ui| {
                     ui.selectable_value(&mut self.data.model_selected, Models::French_Bulldog, "French Bulldog");
