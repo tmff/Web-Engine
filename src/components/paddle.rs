@@ -27,7 +27,7 @@ impl Paddle {
 
 
 impl Component for Paddle{
-    fn start(&mut self){
+    fn start(&mut self,rigidbodys : &mut Vec<RigidBody>,body_index: usize){
         //initialize paddle
     }
     fn update(&mut self, dt: f32, rigidbodys : &mut Vec<RigidBody>,body_index: usize){

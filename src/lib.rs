@@ -19,7 +19,7 @@ mod component;
 
 mod components {
     pub mod paddle;
-
+    pub mod ball;
 }
 
 use crate::components::paddle;
@@ -72,9 +72,9 @@ impl ModelInstances {
         }
     }
 
-    pub fn add_instance(&mut self ,device : &wgpu::Device,rigidbodys : &mut Vec<physics::RigidBody>){
+    pub fn add_instance(&mut self ,device : &wgpu::Device,rigidbodys : &mut Vec<physics::RigidBody>,position : [f32; 3]){
         rigidbodys.push(RigidBody{
-            position: cgmath::Vector3{x: 0.0, y: 0.0, z: 0.0},
+            position: cgmath::Vector3{x:position[0],y:position[1],z:position[2]},
             rotation: cgmath::Quaternion::from_axis_angle(cgmath::Vector3::unit_z(), cgmath::Deg(0.0)),
             velocity: cgmath::Vector3{x: 0.0, y: 0.0, z: 0.0},
             acceleration: cgmath::Vector3{x: 0.0, y: 0.0, z: 0.0},
@@ -83,14 +83,18 @@ impl ModelInstances {
             shape: physics::Shape::Box(cgmath::Vector3::new(1.0, 1.0, 1.0)),
         
         });
+        //let component = paddle::Paddle::new();
+        let component = components::ball::Ball::new(); 
         self.instances.push(Instance{
-            position: cgmath::Vector3{x: 0.0, y: 0.0, z: 0.0},
+            position: cgmath::Vector3{x:position[0],y:position[1],z:position[2]},
             rotation: cgmath::Quaternion::from_axis_angle(cgmath::Vector3::unit_z(), cgmath::Deg(0.0)),
             rigid_body: rigidbodys.len() - 1,
             component: Some(Box::new(
-                paddle::Paddle::new()
+                component
             )),
+            started: false,
         });
+        
 
         let instance_data = self.instances.iter().map(Instance::to_raw).collect::<Vec<_>>();
 
@@ -107,17 +111,17 @@ impl ModelInstances {
 
 
 pub struct Data{
-    rotation_speed: f32,
     clear_color: [f32; 4],
     model_selected: Models,
+    position: [f32; 3],
 }
 
 impl Data {
     pub fn new() -> Self {
         Self {
-            rotation_speed: 2.0 * std::f32::consts::PI / 60.0,
             clear_color: [0.1, 0.2, 0.3, 1.0],
             model_selected: Models::French_Bulldog,
+            position: [0.0, 0.0, 0.0],
         }
     }
 }
@@ -149,6 +153,7 @@ pub struct Instance {
     rotation: cgmath::Quaternion<f32>,
     rigid_body: usize,
     component : Option<Box<dyn Component>>,
+    started : bool
 }
 
 #[repr(C)]
@@ -166,6 +171,10 @@ impl Instance {
 
     fn update(&mut self, delta_time: f32,rigidbodys : &mut Vec<physics::RigidBody>) {
         if let Some(component) = &mut self.component {
+            if !self.started {
+                component.start(rigidbodys, self.rigid_body);
+                self.started = true;
+            }
             component.update( delta_time,rigidbodys, self.rigid_body);
         }
 
@@ -688,7 +697,7 @@ impl State {
     }
 
     fn add_instance(&mut self, index : usize){
-        self.model_instances[index].add_instance(&self.device, &mut self.rigidbodys);
+        self.model_instances[index].add_instance(&self.device, &mut self.rigidbodys,self.data.position);
     }
 
     fn setup_gui(&mut self){
@@ -703,6 +712,15 @@ impl State {
                 "Frame time: {}ms",
                 avg_frame_time,
             )));
+            ui.add(egui::DragValue::new(
+                &mut self.data.position[0],
+            ));
+            ui.add(egui::DragValue::new(
+                &mut self.data.position[1],
+            ));
+            ui.add(egui::DragValue::new(
+                &mut self.data.position[2],
+            ));
             ui.color_edit_button_rgba_premultiplied(&mut self.data.clear_color);
             //spawn object button
             egui::ComboBox::from_label("Select one!")
@@ -714,9 +732,6 @@ impl State {
             );
             if ui.add(egui::Button::new("Spawn Object")).clicked(){
                 self.add_instance(self.data.model_selected as usize);
-            }
-            if ui.add(egui::Button::new("Spin")).clicked(){
-
             }
 
         });
