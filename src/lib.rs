@@ -666,15 +666,7 @@ impl State {
             // render()
 
             render_pass.set_pipeline(&self.render_pipeline);
-            /*
-            render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
-            //TODO: add draw_model_instance for each ModelInstance
-            render_pass.draw_model_instanced(
-                &self.obj_model,
-                0..self.instances.len() as u32,
-                &self.camera_bind_group,
-            );
-            */
+
 
             for model_instance in self.model_instances.iter() {
                 render_pass.set_vertex_buffer(1, model_instance.instance_buffer.slice(..));
