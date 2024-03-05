@@ -6,6 +6,7 @@ use crate::physics::RigidBody;
 use gloo::console::log;
 
 pub struct Paddle {
+    input_keys : Vec<VirtualKeyCode>,
     is_forward_pressed: bool,
     is_backward_pressed: bool,
     is_left_pressed: bool,
@@ -14,12 +15,13 @@ pub struct Paddle {
 
 
 impl Paddle {
-    pub fn new() -> Self {
+    pub fn new(input_keys : Vec<VirtualKeyCode>) -> Self {
         Self {
             is_forward_pressed: false,
             is_backward_pressed: false,
             is_left_pressed: false,
             is_right_pressed: false,
+            input_keys,
         }
     }
     
@@ -32,18 +34,9 @@ impl Component for Paddle{
     }
     fn update(&mut self, dt: f32, rigidbodys : &mut Vec<RigidBody>,body_index: usize){
         //update paddle
-        let test = rigidbodys.clone();
 
         
         let rigidbody = &mut rigidbodys[body_index];
-        for i in 0..test.len(){
-            if i != body_index{
-                let other = &test[i];
-                if rigidbody.is_intersecting(other){
-
-                }
-            }
-        }
         
         if self.is_left_pressed {
             rigidbody.velocity.x = -10.0;
@@ -67,24 +60,24 @@ impl Component for Paddle{
                 ..
             } => {
                 let is_pressed = *state == ElementState::Pressed;
-                match keycode {
-                    VirtualKeyCode::I | VirtualKeyCode::Up => {
-                        self.is_forward_pressed = is_pressed;
-                        true
-                    }
-                    VirtualKeyCode::J | VirtualKeyCode::Left => {
-                        self.is_left_pressed = is_pressed;
-                        true
-                    }
-                    VirtualKeyCode::K | VirtualKeyCode::Down => {
-                        self.is_backward_pressed = is_pressed;
-                        true
-                    }
-                    VirtualKeyCode::L | VirtualKeyCode::Right => {
-                        self.is_right_pressed = is_pressed;
-                        true
-                    }
-                    _ => false,
+                if keycode == &self.input_keys[0] {
+                    self.is_forward_pressed = is_pressed;
+                    return true;
+                }
+                else if keycode == &self.input_keys[1] {
+                    self.is_backward_pressed = is_pressed;
+                    return true;
+                }
+                else if keycode == &self.input_keys[2] {
+                    self.is_left_pressed = is_pressed;
+                    return true;
+                }
+                else if keycode == &self.input_keys[3] {
+                    self.is_right_pressed = is_pressed;
+                    return true;
+                }
+                else{
+                    return false;
                 }
             }
             _ => false,

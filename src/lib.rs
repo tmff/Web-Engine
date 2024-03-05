@@ -118,6 +118,10 @@ pub struct Data{
     model_selected: Models,
     position: [f32; 3],
     component_selected: ComponentSelection,
+    input1:VirtualKeyCode,
+    input2:VirtualKeyCode,
+    input3:VirtualKeyCode,
+    input4:VirtualKeyCode,
 }
 
 impl Data {
@@ -127,6 +131,10 @@ impl Data {
             model_selected: Models::French_Bulldog,
             position: [0.0, 0.0, 0.0],
             component_selected: ComponentSelection::Paddle,
+            input1: VirtualKeyCode::I,
+            input2: VirtualKeyCode::K,
+            input3: VirtualKeyCode::J,
+            input4: VirtualKeyCode::L,
         }
     }
 }
@@ -696,7 +704,9 @@ impl State {
     fn add_instance(&mut self, index : usize){
         let component = match self.data.component_selected {
             ComponentSelection::None => None,
-            ComponentSelection::Paddle => Some(Box::new(components::paddle::Paddle::new()) as Box<dyn Component>),
+            ComponentSelection::Paddle => Some(Box::new(components::paddle::Paddle::new(
+                vec![self.data.input1,self.data.input2,self.data.input3,self.data.input4]
+            )) as Box<dyn Component>),
             ComponentSelection::Ball => Some(Box::new(components::ball::Ball::new()) as Box<dyn Component>),
         };
         self.model_instances[index].add_instance(&self.device, &mut self.rigidbodys,self.data.position,component);
@@ -724,7 +734,48 @@ impl State {
             ui.add(egui::DragValue::new(
                 &mut self.data.position[2],
             ).prefix("z: "));
-            //spawn object button
+            ui.add(egui::Label::new("Controls"));
+            input_combo!(ui,"Input 1", self.data.input1,
+                VirtualKeyCode::I => "I",
+                VirtualKeyCode::K => "K",
+                VirtualKeyCode::J => "J",
+                VirtualKeyCode::L => "L",
+                VirtualKeyCode::T => "T",
+                VirtualKeyCode::G => "G",
+                VirtualKeyCode::F => "F",
+                VirtualKeyCode::H => "H"
+            );
+            input_combo!(ui,"Input 2", self.data.input2,
+                VirtualKeyCode::I => "I",
+                VirtualKeyCode::K => "K",
+                VirtualKeyCode::J => "J",
+                VirtualKeyCode::L => "L",
+                VirtualKeyCode::T => "T",
+                VirtualKeyCode::G => "G",
+                VirtualKeyCode::F => "F",
+                VirtualKeyCode::H => "H"
+            );
+            input_combo!(ui,"Input 3", self.data.input3,
+                VirtualKeyCode::I => "I",
+                VirtualKeyCode::K => "K",
+                VirtualKeyCode::J => "J",
+                VirtualKeyCode::L => "L",
+                VirtualKeyCode::T => "T",
+                VirtualKeyCode::G => "G",
+                VirtualKeyCode::F => "F",
+                VirtualKeyCode::H => "H"
+            );
+            input_combo!(ui,"Input 4", self.data.input4,
+                VirtualKeyCode::I => "I",
+                VirtualKeyCode::K => "K",
+                VirtualKeyCode::J => "J",
+                VirtualKeyCode::L => "L",
+                VirtualKeyCode::T => "T",
+                VirtualKeyCode::G => "G",
+                VirtualKeyCode::F => "F",
+                VirtualKeyCode::H => "H"
+            );
+            
             egui::ComboBox::from_label("Component!")
                 .selected_text(format!("{:?}", self.data.component_selected))
                 .show_ui(ui, |ui| {
@@ -756,6 +807,19 @@ impl State {
         self.frame_times[self.frame_times.len() - 1]
     }
 
+}
+
+#[macro_export]
+macro_rules! input_combo {
+    ($ui:expr, $label:expr, $data:expr, $($key:expr => $value:expr),*) => {
+        egui::ComboBox::from_label($label)
+            .selected_text(format!("{:?}", $data))
+            .show_ui($ui, |ui| {
+                $(
+                    ui.selectable_value(&mut $data, $key, $value);
+                )*
+            });
+    };
 }
 
 #[cfg_attr(target_arch="wasm32", wasm_bindgen(start))]

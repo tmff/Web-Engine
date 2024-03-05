@@ -89,7 +89,6 @@ impl RigidBody {
     fn update_rotation(&mut self ,delta_time: f32) {
         let half_delta_rot = Quaternion::from_sv(0.0,0.5 * self.angular_velocity * delta_time);
         let new_orientation = self.rotation + (self.rotation * half_delta_rot);
-        log!("Angular Velocity: {:?}", self.angular_velocity.magnitude().to_string());
         if new_orientation.magnitude() < f32::EPSILON{ // Avoid NaN maybe needs a cleaner fix
             return;
         }

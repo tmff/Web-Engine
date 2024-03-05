@@ -1,6 +1,10 @@
 use crate::component::Component;
 use winit::event::*;
 use crate::physics::RigidBody;
+use cgmath::Vector3;
+
+use gloo::console::log;
+
 
 
 pub struct Ball {}
@@ -15,7 +19,8 @@ impl Component for Ball {
     fn start(&mut self,rigidbodys : &mut Vec<RigidBody>,body_index: usize) {
         //initialize ball
         let rigidbody = &mut rigidbodys[body_index];
-        rigidbody.add_force(cgmath::Vector3::new(0.0, 10.0, 0.0));
+        rigidbody.velocity = Vector3::new(0.0, -2.0, 0.0);
+        log!("ball start");
 
     }
     fn update(&mut self, dt: f32, rigidbodys : &mut Vec<RigidBody>,body_index: usize){
@@ -27,7 +32,10 @@ impl Component for Ball {
             if i != body_index{
                 let other = &test[i];
                 if rigidbody.is_intersecting(other){
-                    rigidbody.velocity = -rigidbody.velocity;
+                    let arb : Vector3<f32> = Vector3::unit_x();
+                    let perp = rigidbody.velocity.cross(arb);
+                    rigidbody.velocity = perp;
+                    log!("rigidbody.velocity: {:?}", rigidbody.velocity.y);
                 }
             }
         }
