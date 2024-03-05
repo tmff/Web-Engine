@@ -45,6 +45,7 @@ use web_sys::{HtmlInputElement, FileList, File};
 enum Models {
     French_Bulldog,
     Cube,
+    Wall,
 }
 
 #[derive(Debug, PartialEq, Clone, Copy,Eq, Hash)]
@@ -79,10 +80,10 @@ impl ModelInstances {
         }
     }
 
-    pub fn add_instance(&mut self ,device : &wgpu::Device,rigidbodys : &mut Vec<physics::RigidBody>,position : [f32; 3],component : Option<Box<dyn component::Component>>){
+    pub fn add_instance(&mut self ,device : &wgpu::Device,rigidbodys : &mut Vec<physics::RigidBody>,position : [f32; 3],euler : [f32;3],component : Option<Box<dyn component::Component>>){
         rigidbodys.push(RigidBody{
             position: cgmath::Vector3{x:position[0],y:position[1],z:position[2]},
-            rotation: cgmath::Quaternion::from_axis_angle(cgmath::Vector3::unit_z(), cgmath::Deg(0.0)),
+            rotation: cgmath::Quaternion::from(cgmath::Euler::new(cgmath::Deg(euler[0]),cgmath::Deg(euler[1]),cgmath::Deg(euler[2]))),
             velocity: cgmath::Vector3{x: 0.0, y: 0.0, z: 0.0},
             acceleration: cgmath::Vector3{x: 0.0, y: 0.0, z: 0.0},
             angular_velocity: cgmath::Vector3{x: 0.0, y: 0.0, z: 0.0},
@@ -92,7 +93,7 @@ impl ModelInstances {
         });
         self.instances.push(Instance{
             position: cgmath::Vector3{x:position[0],y:position[1],z:position[2]},
-            rotation: cgmath::Quaternion::from_axis_angle(cgmath::Vector3::unit_z(), cgmath::Deg(0.0)),
+            rotation: cgmath::Quaternion::from(cgmath::Euler::new(cgmath::Deg(euler[0]),cgmath::Deg(euler[1]),cgmath::Deg(euler[2]))),
             rigid_body: rigidbodys.len() - 1,
             component,
             started: false,
@@ -117,6 +118,7 @@ pub struct Data{
     clear_color: [f32; 4],
     model_selected: Models,
     position: [f32; 3],
+    euler: [f32; 3],
     component_selected: ComponentSelection,
     input1:VirtualKeyCode,
     input2:VirtualKeyCode,
@@ -130,7 +132,8 @@ impl Data {
             clear_color: [0.1, 0.2, 0.3, 1.0],
             model_selected: Models::French_Bulldog,
             position: [0.0, 0.0, 0.0],
-            component_selected: ComponentSelection::Paddle,
+            euler: [0.0, 0.0, 0.0],
+            component_selected: ComponentSelection::None,
             input1: VirtualKeyCode::I,
             input2: VirtualKeyCode::K,
             input3: VirtualKeyCode::J,
@@ -709,7 +712,7 @@ impl State {
             )) as Box<dyn Component>),
             ComponentSelection::Ball => Some(Box::new(components::ball::Ball::new()) as Box<dyn Component>),
         };
-        self.model_instances[index].add_instance(&self.device, &mut self.rigidbodys,self.data.position,component);
+        self.model_instances[index].add_instance(&self.device, &mut self.rigidbodys,self.data.position,self.data.euler,component);
     }
 
     fn setup_gui(&mut self){
@@ -725,6 +728,7 @@ impl State {
                 avg_frame_time,
             )));
             ui.color_edit_button_rgba_premultiplied(&mut self.data.clear_color);
+            ui.add(egui::Label::new("Create!"));
             ui.add(egui::DragValue::new(
                 &mut self.data.position[0],
             ).prefix("x: "));
@@ -734,6 +738,16 @@ impl State {
             ui.add(egui::DragValue::new(
                 &mut self.data.position[2],
             ).prefix("z: "));
+            ui.add(egui::Label::new("Rotation!"));
+            ui.add(egui::DragValue::new(
+                &mut self.data.euler[0],
+            ).prefix("x: ").clamp_range(0.0..=360.0));
+            ui.add(egui::DragValue::new(
+                &mut self.data.euler[1],
+            ).prefix("y: ").clamp_range(0.0..=360.0));
+            ui.add(egui::DragValue::new(
+                &mut self.data.euler[2],
+            ).prefix("z: ").clamp_range(0.0..=360.0));
             ui.add(egui::Label::new("Controls"));
             input_combo!(ui,"Input 1", self.data.input1,
                 VirtualKeyCode::I => "I",
@@ -776,9 +790,11 @@ impl State {
                 VirtualKeyCode::H => "H"
             );
             
+            ui.add(egui::Label::new("Properties!"));
             egui::ComboBox::from_label("Component!")
                 .selected_text(format!("{:?}", self.data.component_selected))
                 .show_ui(ui, |ui| {
+                    ui.selectable_value(&mut self.data.component_selected, ComponentSelection::None, "None");
                     ui.selectable_value(&mut self.data.component_selected, ComponentSelection::Paddle, "Paddle");
                     ui.selectable_value(&mut self.data.component_selected, ComponentSelection::Ball, "Ball");
                 }
@@ -788,9 +804,10 @@ impl State {
                 .show_ui(ui, |ui| {
                     ui.selectable_value(&mut self.data.model_selected, Models::French_Bulldog, "French Bulldog");
                     ui.selectable_value(&mut self.data.model_selected, Models::Cube, "Cube");
+                    ui.selectable_value(&mut self.data.model_selected, Models::Wall, "Wall");
                 }
             );
-            if ui.add(egui::Button::new("Spawn Object")).clicked(){
+            if ui.add(egui::Button::new("Spawn Object!")).clicked(){
                 self.add_instance(self.data.model_selected as usize);
             }
 
@@ -866,6 +883,12 @@ pub async fn run() {
         .await
         .unwrap();
     state.add_model(cube_model);
+
+    let wall_model = resources::load_model("wall2.obj", &state.device, &state.queue, &state.texture_bind_group_layout)
+        .await
+        .unwrap();
+    state.add_model(wall_model);
+
 
 
 

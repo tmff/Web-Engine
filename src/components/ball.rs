@@ -19,7 +19,7 @@ impl Component for Ball {
     fn start(&mut self,rigidbodys : &mut Vec<RigidBody>,body_index: usize) {
         //initialize ball
         let rigidbody = &mut rigidbodys[body_index];
-        rigidbody.velocity = Vector3::new(0.0, -2.0, 0.0);
+        rigidbody.velocity = Vector3::new(3.0, -5.0, 0.0);
         log!("ball start");
 
     }
